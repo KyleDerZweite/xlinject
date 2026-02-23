@@ -1,5 +1,7 @@
 # Roadmap
 
+Current release stage: **early development (alpha)**. The project is not fully released yet.
+
 ## Phase 1 — MVP (Proof of Concept)
 
 - ✅ Add XLSX zip wrapper (in-memory read/repack)
@@ -24,5 +26,6 @@
 ## Phase 4 — Library Release
 
 - Finalize package structure and public API
-- Add CI workflow for lint/test/build/publish
+- ✅ Add CI workflow for lint/type/test
+- Add release workflow for tagged builds/publish
 - Publish to PyPI

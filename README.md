@@ -1,10 +1,14 @@
 # xlinject
 
+[![CI](https://github.com/KyleDerZweite/xlinject/actions/workflows/ci.yml/badge.svg)](https://github.com/KyleDerZweite/xlinject/actions/workflows/ci.yml)
+
 A surgical XML injector for `.xlsx` files.
 
 `xlinject` is designed to read and write specific cell values directly inside the XLSX archive while preserving formatting, metadata, and modern Excel dynamic array semantics.
 
-> Status: **MVP available for sentinel replacement in a single-column range**
+> Status: **Early development (alpha) — not fully released yet**
+>
+> Current MVP supports sentinel replacement in a single-column range, but the project is still pre-release.
 
 ## Why this project exists
 

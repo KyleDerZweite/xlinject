@@ -6,7 +6,7 @@ A surgical XML injector for `.xlsx` files.
 
 `xlinject` is designed to read and write specific cell values directly inside the XLSX archive while preserving formatting, metadata, and modern Excel dynamic array semantics.
 
-> Status: **Early development (alpha) — not fully released yet**
+> Status: **Early development (alpha) - not fully released yet**
 >
 > Current MVP supports sentinel replacement in a single-column range, but the project is still pre-release.
 
@@ -42,15 +42,24 @@ See:
 
 ```bash
 uv sync --dev
+uv run pre-commit install
 ```
 
 ### Quality checks
 
 ```bash
+uv run pre-commit run --all-files
 uv run ruff check .
 uv run mypy .
 uv run pytest
 ```
+
+## Style policy
+
+- Avoid em dashes (`--`) in repository text.
+- Avoid emojis in repository text.
+
+These checks run via pre-commit locally and in CI.
 
 ## Production replacement command
 

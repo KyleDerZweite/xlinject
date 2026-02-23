@@ -13,3 +13,4 @@ repos:
         entry: python scripts/check_plain_text_style.py
         language: python
         types_or: [markdown, text, python, toml, yaml, json]
+        exclude: ^scripts/check_plain_text_style.py$

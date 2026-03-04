@@ -1,6 +1,6 @@
 [project]
 name = "xlinject"
-version = "0.1.0"
+version = "0.2.0a1"
 description = "A surgical XML injector for .xlsx files. Reads and writes specific cell values directly into the archive without altering formatting, metadata, or breaking modern dynamic array formulas."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,6 +8,7 @@ authors = [
   { name = "xlinject contributors" }
 ]
 license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 keywords = [
   "python",
   "xlsx",
@@ -18,24 +19,37 @@ keywords = [
 ]
 classifiers = [
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
   "Intended Audience :: Developers",
   "Topic :: Software Development :: Libraries",
   "Topic :: Office/Business :: Financial :: Spreadsheet"
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/KyleDerZweite/xlinject"
+Repository = "https://github.com/KyleDerZweite/xlinject"
+Issues = "https://github.com/KyleDerZweite/xlinject/issues"
+Documentation = "https://github.com/KyleDerZweite/xlinject/blob/main/docs/INDEX.md"
+
 [project.scripts]
-xlinject-replace = "xlinject.cli:main"
+xlinject-write-cells = "xlinject.cli_write_cells:main"
 
 [dependency-groups]
 dev = [
+  "build>=1.2",
   "pytest>=8.0",
   "ruff>=0.8",
   "mypy>=1.11",
   "pre-commit>=4.0",
-  "openpyxl>=3.1"
+  "openpyxl>=3.1",
+  "twine>=5.1"
 ]
 
 [build-system]

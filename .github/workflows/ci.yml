@@ -38,3 +38,9 @@ jobs:
 
       - name: Pytest
         run: uv run pytest -q
+
+      - name: Build package
+        run: uv build
+
+      - name: Twine check
+        run: uv run twine check dist/*

@@ -2,8 +2,8 @@
 
 ## Project maturity
 
-`xlinject` is in **early development (alpha)** and is **not fully released**.
-Security hardening is ongoing and interfaces may change.
+`xlinject` is in **alpha testing/release**.
+The library is usable, but security hardening and API refinements are still ongoing.
 
 ## Supported versions
 
@@ -11,7 +11,8 @@ At this stage, only the latest `main` branch state is considered supported for s
 
 ## Reporting a vulnerability
 
-Please report security issues privately by opening a GitHub Security Advisory (preferred) or by contacting the maintainers directly.
+Please report security issues privately via GitHub Security Advisories (preferred).
+If that is not possible, contact maintainers directly and avoid public issue disclosure.
 
 When reporting, include:
 
@@ -25,6 +26,11 @@ When reporting, include:
 - Initial acknowledgement: within 7 days
 - Triage decision: within 14 days
 - Fix timeline: depends on severity and maintainers' availability
+
+## Coordinated disclosure
+
+- Please allow maintainers reasonable time to triage and patch before public disclosure.
+- We will publish remediation notes in release notes when fixes are available.
 
 ## Scope notes
 

@@ -29,6 +29,13 @@ This repository is prepared for human + AI collaboration.
 - Preserve `mc:Ignorable` namespace compatibility on all worksheet rewrites.
 - Maintain recalculation safety (`calcChain` handling + workbook `calcPr` policy).
 
+## Data safety and sharing
+
+- Do not commit customer workbooks, meter IDs, or API tokens into this repository.
+- Use synthetic fixtures in tests and docs.
+- Keep integration examples anonymized (for example `SITE_A`, `SITE_B`, `X1234`).
+- If you publish logs, redact workbook paths and business identifiers.
+
 ## Release and packaging expectations
 
 - Use `uv` for dependency and environment management.

@@ -65,13 +65,6 @@ uv run mypy .
 uv run pytest
 ```
 
-## Style policy
-
-- Avoid em dashes (`--`) in repository text.
-- Avoid emojis in repository text.
-
-These checks run via pre-commit locally and in CI.
-
 ## Direct write API
 
 ```python
@@ -99,13 +92,6 @@ Detailed API options, recalc policy behavior, helper patterns, and CLI usage:
 
 - [docs/USAGE.md](docs/USAGE.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
-## Data safety and sharing
-
-- Do not commit customer workbooks, meter IDs, or API tokens into this repository.
-- Use synthetic fixtures in tests and docs.
-- Keep integration examples anonymized (for example `SITE_A`, `SITE_B`, `X1234`).
-- If you publish logs, redact workbook paths and business identifiers.
 
 ## License
 

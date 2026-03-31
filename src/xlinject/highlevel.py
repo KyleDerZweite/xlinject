@@ -9,7 +9,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 from xlinject.cellrefs import build_cell_reference
-from xlinject.injector import WriteReport, write_numeric_cells
+from xlinject.injector import WriteReport, write_cells, write_numeric_cells
 from xlinject.workbook_map import NS_MAIN, map_sheet_name_to_part
 
 NS_MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -300,6 +300,48 @@ def inject_cells(
         cell_values=normalized,
         guard_cells=guard_cells,
         allow_formula_overwrite=allow_formula_overwrite,
+    )
+
+    if remove_calc_chain_after_write or set_full_calc_on_load or clear_formula_cached_values:
+        apply_recalc_policy(
+            output_path,
+            remove_calc_chain_file=remove_calc_chain_after_write,
+            set_full_calc_on_load=set_full_calc_on_load,
+            clear_formula_cached_values=clear_formula_cached_values,
+            clear_formula_cache_sheets=(sheet_name,),
+        )
+
+    return report
+
+
+def inject_cells_mixed(
+    input_path: str | Path,
+    output_path: str | Path,
+    *,
+    sheet_name: str,
+    cell_values: Mapping[str, object],
+    guard_cells: list[str] | tuple[str, ...] = (),
+    allow_formula_overwrite: bool = False,
+    validate_sheet_rules: bool = True,
+    remove_calc_chain_after_write: bool = True,
+    set_full_calc_on_load: bool = True,
+    clear_formula_cached_values: bool = False,
+) -> WriteReport:
+    """High-level mixed-value injection API for numeric and string cells.
+
+    This API preserves the existing XML-first write strategy while supporting
+    text values via `inlineStr` cells. Empty values and NaN are skipped.
+    Optionally validates candidate values against direct worksheet validation rules
+    before any mutation is written.
+    """
+    report = write_cells(
+        Path(input_path),
+        Path(output_path),
+        sheet_name=sheet_name,
+        cell_values=cell_values,
+        guard_cells=guard_cells,
+        allow_formula_overwrite=allow_formula_overwrite,
+        validate_sheet_rules=validate_sheet_rules,
     )
 
     if remove_calc_chain_after_write or set_full_calc_on_load or clear_formula_cached_values:

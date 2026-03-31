@@ -31,8 +31,19 @@ class WriteReport:
     output_file: Path
 
 
+@dataclass(frozen=True)
+class ValidationRule:
+    sqref: str
+    validation_type: str | None
+    operator: str | None
+    formula1: str | None
+    allow_blank: bool
+    error_message: str | None
+
+
 X_MAIN = {"x": NS_MAIN}
 NS_MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+XML_SPACE = "http://www.w3.org/XML/1998/namespace"
 IGNORABLE_NAMESPACE_FALLBACKS: dict[str, str] = {
     "x14ac": "http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac",
     "xr": "http://schemas.microsoft.com/office/spreadsheetml/2014/revision",
@@ -190,6 +201,232 @@ def _set_numeric_value(cell: ET.Element, value: float) -> None:
         value_node = ET.SubElement(cell, value_tag)
 
     value_node.text = format(value, ".15g")
+
+
+def _remove_child_nodes(cell: ET.Element, local_name: str) -> None:
+    tag = f"{{{NS_MAIN}}}{local_name}"
+    for node in list(cell.findall(tag)):
+        cell.remove(node)
+
+
+def _set_inline_string_value(cell: ET.Element, value: str) -> None:
+    cell.attrib["t"] = "inlineStr"
+    _remove_child_nodes(cell, "v")
+    _remove_child_nodes(cell, "is")
+
+    is_node = ET.SubElement(cell, f"{{{NS_MAIN}}}is")
+    text_node = ET.SubElement(is_node, f"{{{NS_MAIN}}}t")
+    if value != value.strip() or "\n" in value or "  " in value:
+        text_node.attrib[f"{{{XML_SPACE}}}space"] = "preserve"
+    text_node.text = value
+
+
+def _coerce_number(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return None if _is_nan(value) else float(value)
+    return None
+
+
+def _first_formula_text(data_validation: ET.Element) -> str | None:
+    for node in data_validation.iter():
+        if node.tag.endswith("}formula1") and node.text is not None:
+            return node.text
+    return None
+
+
+def _column_index_to_name(column_index: int) -> str:
+    chars: list[str] = []
+    current = column_index
+    while current > 0:
+        current, remainder = divmod(current - 1, 26)
+        chars.append(chr(ord("A") + remainder))
+    return "".join(reversed(chars))
+
+
+def _expand_range_token(range_token: str) -> list[str]:
+    token = range_token.strip().upper()
+    if not token:
+        return []
+    if ":" not in token:
+        return [token]
+
+    start_ref, end_ref = token.split(":", maxsplit=1)
+    start_column, start_row = split_cell_reference(start_ref)
+    end_column, end_row = split_cell_reference(end_ref)
+    start_column_index = column_name_to_index(start_column)
+    end_column_index = column_name_to_index(end_column)
+
+    refs: list[str] = []
+    for row_number in range(start_row, end_row + 1):
+        for column_index in range(start_column_index, end_column_index + 1):
+            column_name = _column_index_to_name(column_index)
+            refs.append(build_cell_reference(column_name, row_number))
+    return refs
+
+
+def _parse_sqref(sqref: str) -> list[str]:
+    refs: list[str] = []
+    for token in sqref.split():
+        refs.extend(_expand_range_token(token))
+    return refs
+
+
+def _parse_list_options(formula: str | None) -> list[str]:
+    if formula is None:
+        return []
+    text = formula.strip()
+    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+        text = text[1:-1]
+    return [item.strip() for item in text.split(",")]
+
+
+def _is_empty_value(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    return False
+
+
+def _validate_rule(cell_ref: str, value: object, rule: ValidationRule) -> None:
+    if _is_empty_value(value):
+        if rule.allow_blank:
+            return
+        raise ValueError(f"Cell {cell_ref} does not allow blank values")
+
+    if rule.validation_type is None:
+        return
+
+    if rule.validation_type == "list":
+        options = _parse_list_options(rule.formula1)
+        if str(value) not in options:
+            raise ValueError(f"Cell {cell_ref} expects one of {options!r}, got {value!r}")
+        return
+
+    if rule.validation_type == "textLength":
+        expected_length = int(float(rule.formula1 or "0"))
+        if len(str(value)) != expected_length:
+            raise ValueError(
+                f"Cell {cell_ref} expects text length {expected_length}, got {len(str(value))}"
+            )
+        return
+
+    numeric_value = _coerce_number(value)
+    if numeric_value is None:
+        raise ValueError(f"Cell {cell_ref} expects a numeric value, got {value!r}")
+
+    if rule.validation_type == "whole" and not numeric_value.is_integer():
+        raise ValueError(f"Cell {cell_ref} expects a whole number, got {numeric_value!r}")
+
+    threshold = float(rule.formula1 or "0")
+    operator = rule.operator or "equal"
+    comparisons = {
+        "equal": numeric_value == threshold,
+        "greaterThan": numeric_value > threshold,
+        "greaterThanOrEqual": numeric_value >= threshold,
+        "lessThan": numeric_value < threshold,
+        "lessThanOrEqual": numeric_value <= threshold,
+    }
+    if operator not in comparisons:
+        return
+    if not comparisons[operator]:
+        raise ValueError(
+            "Cell "
+            f"{cell_ref} violates {rule.validation_type} validation "
+            f"{operator} {threshold}: {numeric_value!r}"
+        )
+
+
+def extract_validation_rules(
+    input_path: Path,
+    *,
+    sheet_name: str,
+) -> dict[str, list[ValidationRule]]:
+    with zipfile.ZipFile(input_path, "r") as in_archive:
+        sheet_part = map_sheet_name_to_part(in_archive, sheet_name)
+        root = ET.fromstring(in_archive.read(sheet_part))
+
+    rules_by_cell: dict[str, list[ValidationRule]] = {}
+    data_validations = root.find("x:dataValidations", X_MAIN)
+    if data_validations is None:
+        return rules_by_cell
+
+    for data_validation in data_validations.findall("x:dataValidation", X_MAIN):
+        rule = ValidationRule(
+            sqref=data_validation.attrib.get("sqref", ""),
+            validation_type=data_validation.attrib.get("type"),
+            operator=data_validation.attrib.get("operator"),
+            formula1=_first_formula_text(data_validation),
+            allow_blank=data_validation.attrib.get("allowBlank") == "1",
+            error_message=data_validation.attrib.get("error"),
+        )
+        for cell_ref in _parse_sqref(rule.sqref):
+            rules_by_cell.setdefault(cell_ref, []).append(rule)
+
+    return rules_by_cell
+
+
+def validate_cell_values(
+    input_path: Path,
+    *,
+    sheet_name: str,
+    cell_values: Mapping[str, object],
+) -> None:
+    rules_by_cell = extract_validation_rules(input_path, sheet_name=sheet_name)
+    for raw_ref, value in cell_values.items():
+        cell_ref = str(raw_ref).strip().upper()
+        if not cell_ref or _is_empty_value(value) or _is_nan(value):
+            continue
+        for rule in rules_by_cell.get(cell_ref, []):
+            _validate_rule(cell_ref, value, rule)
+
+
+def _build_cell_cache(
+    sheet_data: ET.Element,
+) -> tuple[dict[int, ET.Element], dict[str, ET.Element]]:
+    row_tag = f"{{{NS_MAIN}}}row"
+    cell_tag = f"{{{NS_MAIN}}}c"
+    row_cache: dict[int, ET.Element] = {}
+    cell_cache: dict[str, ET.Element] = {}
+
+    for row in sheet_data.findall(row_tag):
+        row_r = row.attrib.get("r")
+        if row_r is None:
+            continue
+        try:
+            row_number = int(row_r)
+        except ValueError:
+            continue
+        row_cache[row_number] = row
+        for cell in row.findall(cell_tag):
+            ref = cell.attrib.get("r")
+            if ref:
+                cell_cache[ref.strip().upper()] = cell
+
+    return row_cache, cell_cache
+
+
+def _get_or_create_cell_fast(
+    sheet_data: ET.Element,
+    row_cache: dict[int, ET.Element],
+    cell_cache: dict[str, ET.Element],
+    cell_ref: str,
+) -> ET.Element:
+    existing = cell_cache.get(cell_ref)
+    if existing is not None:
+        return existing
+
+    column_name, row_number = split_cell_reference(cell_ref)
+    row_element = row_cache.get(row_number)
+    if row_element is None:
+        row_element = _insert_row_sorted(sheet_data, row_number)
+        row_cache[row_number] = row_element
+
+    new_cell = _insert_cell_sorted(row_element, build_cell_reference(column_name, row_number))
+    cell_cache[cell_ref] = new_cell
+    return new_cell
 
 
 def _is_nan(value: object) -> bool:
@@ -466,6 +703,106 @@ def write_numeric_cells(
             for ref in guard_refs
         }
 
+        changed_guard_refs = [
+            ref for ref in guard_refs
+            if guard_before.get(ref) != guard_after.get(ref)
+        ]
+        if changed_guard_refs:
+            changed = ", ".join(changed_guard_refs)
+            raise RuntimeError(
+                "Guard cell signatures changed after write operation: "
+                f"{changed}"
+            )
+
+        updated_sheet_xml = _serialize_with_ignorable_namespace_preservation(
+            root,
+            original_sheet_xml,
+        )
+        _write_archive_with_sheet_update(in_archive, temp_output, sheet_part, updated_sheet_xml)
+
+    if writing_in_place:
+        temp_output.replace(output_path)
+
+    return WriteReport(
+        written_count=written_count,
+        skipped_nan_count=skipped_nan_count,
+        output_file=output_path,
+    )
+
+
+def write_cells(
+    input_path: Path,
+    output_path: Path,
+    *,
+    sheet_name: str,
+    cell_values: Mapping[str, object],
+    guard_cells: Iterable[str] = (),
+    allow_formula_overwrite: bool = False,
+    validate_sheet_rules: bool = False,
+) -> WriteReport:
+    normalized_items: list[tuple[str, object]] = []
+    skipped_nan_count = 0
+
+    for raw_ref, raw_value in cell_values.items():
+        cell_ref = str(raw_ref).strip().upper()
+        if not cell_ref or _is_empty_value(raw_value):
+            continue
+        if _is_nan(raw_value):
+            skipped_nan_count += 1
+            continue
+        normalized_items.append((cell_ref, raw_value))
+
+    if validate_sheet_rules:
+        validate_cell_values(
+            input_path,
+            sheet_name=sheet_name,
+            cell_values={ref: value for ref, value in normalized_items},
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    temp_output = output_path
+    writing_in_place = input_path.resolve() == output_path.resolve()
+    if writing_in_place:
+        temp_output = output_path.with_suffix(f"{output_path.suffix}.tmp")
+
+    with zipfile.ZipFile(input_path, "r") as in_archive:
+        sheet_part = map_sheet_name_to_part(in_archive, sheet_name)
+        original_sheet_xml = in_archive.read(sheet_part)
+        root = ET.fromstring(original_sheet_xml)
+        sheet_data = root.find("x:sheetData", X_MAIN)
+        if sheet_data is None:
+            raise RuntimeError("Worksheet XML is missing <sheetData>")
+
+        row_cache, cell_cache = _build_cell_cache(sheet_data)
+
+        guard_refs = [ref.strip().upper() for ref in guard_cells if ref.strip()]
+        guard_before = {
+            ref: _extract_guard_signature(root, ref)
+            for ref in guard_refs
+        }
+
+        written_count = 0
+        for cell_ref, raw_value in normalized_items:
+            cell = _get_or_create_cell_fast(sheet_data, row_cache, cell_cache, cell_ref)
+
+            if not allow_formula_overwrite and cell.find("x:f", X_MAIN) is not None:
+                raise RuntimeError(
+                    f"Refusing to overwrite formula cell: {cell_ref}. "
+                    "Set allow_formula_overwrite=True to override."
+                )
+
+            numeric_value = _coerce_number(raw_value)
+            if numeric_value is not None:
+                _set_numeric_value(cell, numeric_value)
+            else:
+                _set_inline_string_value(cell, str(raw_value))
+            written_count += 1
+
+        guard_after = {
+            ref: _extract_guard_signature(root, ref)
+            for ref in guard_refs
+        }
         changed_guard_refs = [
             ref for ref in guard_refs
             if guard_before.get(ref) != guard_after.get(ref)

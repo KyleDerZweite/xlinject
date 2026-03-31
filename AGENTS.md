@@ -42,3 +42,11 @@ This repository is prepared for human + AI collaboration.
 - Keep the package install/build flow in `pyproject.toml`.
 - Prefer small, incremental PRs aligned with roadmap phases.
 - Keep PyPI release workflow healthy (CI build + twine checks + trusted publisher flow).
+
+## Scope
+
+- API-first injection via `{A1: value}` mappings
+- Mixed numeric and string cell writes via dedicated API
+- Guarded formula-safe writes
+- Workbook recalc policy on write (`calcPr` flags + calc chain handling)
+- Optional single generic CLI command for manual use

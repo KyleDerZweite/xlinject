@@ -896,7 +896,7 @@ wheels = [
 
 [[package]]
 name = "xlinject"
-version = "0.2.0a1"
+version = "0.2.0b1"
 source = { editable = "." }
 
 [package.dev-dependencies]

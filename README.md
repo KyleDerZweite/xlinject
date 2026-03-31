@@ -24,23 +24,56 @@ Typical workflow:
 
 Object-model-based libraries often deserialize and reserialize full workbook structures. During that process, unsupported XML tags/attributes can be dropped. `xlinject` will instead target specific XML nodes in-place to minimize collateral changes.
 
-## Scope
+## Direct write API
 
-- API-first injection via `{A1: value}` mappings
-- Guarded formula-safe writes
-- Workbook recalc policy on write (`calcPr` flags + calc chain handling)
-- Optional single generic CLI command for manual use
+```python
+from pathlib import Path
+from xlinject import inject_cells
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for phased details.
+report = inject_cells(
+	"source.xlsx",
+	"output.xlsx",
+	sheet_name="Eingabemaske",
+	cell_values={
+		"B45": 45717.25,
+		"C45": "12,34",
+		"D45": 15.67,
+	},
+	guard_cells=["H2"],
+)
 
-## Documentation
+print(report)
+```
 
-See:
+This writes only the listed cells and keeps formula XML intact unless `allow_formula_overwrite=True` is explicitly set.
 
-- [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/USAGE.md](docs/USAGE.md)
-- [docs/PUBLISHING.md](docs/PUBLISHING.md)
+## Mixed write API
+
+```python
+from xlinject import inject_cells_mixed
+
+report = inject_cells_mixed(
+	"source.xlsx",
+	"output.xlsx",
+	sheet_name="Template",
+	cell_values={
+		"B10": "BK4S1-0008738",
+		"B16": 310,
+		"B17": 129,
+		"B20": "ja",
+	},
+	guard_cells=["B19", "B25"],
+	validate_sheet_rules=True,
+)
+
+print(report)
+```
+
+`inject_cells_mixed` uses the same XML-first strategy as the numeric writer,
+but can also write string cells as `inlineStr` while preserving neighboring XML.
+When `validate_sheet_rules=True`, direct worksheet validations such as `list`,
+`textLength`, `whole`, and `decimal` are checked before the workbook is mutated.
+
 
 ## Development setup (uv)
 
@@ -65,33 +98,6 @@ uv run mypy .
 uv run pytest
 ```
 
-## Direct write API
-
-```python
-from pathlib import Path
-from xlinject import inject_cells
-
-report = inject_cells(
-	"source.xlsx",
-	"output.xlsx",
-	sheet_name="Eingabemaske",
-	cell_values={
-		"B45": 45717.25,
-		"C45": "12,34",
-		"D45": 15.67,
-	},
-	guard_cells=["H2"],
-)
-
-print(report)
-```
-
-This writes only the listed cells and keeps formula XML intact unless `allow_formula_overwrite=True` is explicitly set.
-
-Detailed API options, recalc policy behavior, helper patterns, and CLI usage:
-
-- [docs/USAGE.md](docs/USAGE.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ## License
 

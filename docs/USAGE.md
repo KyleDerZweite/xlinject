@@ -1,6 +1,6 @@
 # Usage
 
-Primary interface is the Python API (`inject_cells` + helper utilities).
+Primary interface is the Python API (`inject_cells`, `inject_cells_mixed` + helper utilities).
 For architecture and design constraints, refer to `ARCHITECTURE.md`.
 
 ## Install / prepare
@@ -28,6 +28,58 @@ Notes:
 
 - `inject_cells` is the recommended entry point for most integrations.
 - Lower-level APIs (`write_numeric_cells`, sentinel replacement) remain available for advanced cases.
+
+## Python API: mixed text and numeric writes
+
+```python
+from xlinject import inject_cells_mixed
+
+report = inject_cells_mixed(
+  "source.xlsx",
+  "output.xlsx",
+  sheet_name="Template",
+  cell_values={
+    "B10": "BK4S1-0008738",
+    "B16": 310,
+    "B17": 129,
+    "B20": "ja",
+  },
+  guard_cells=["B19", "B25"],
+  validate_sheet_rules=True,
+)
+
+print(report)
+```
+
+Notes:
+
+- `inject_cells_mixed` writes numbers as numeric `<v>` nodes and strings as `inlineStr` nodes.
+- Guard cells are checked before and after the mutation, just like the numeric API.
+- When `validate_sheet_rules=True`, direct worksheet validations are checked before writing.
+- The current validation helper supports worksheet rules of type `list`, `textLength`, `whole`, and `decimal`.
+
+## Python API: low-level mixed write
+
+```python
+from pathlib import Path
+from xlinject import write_cells
+
+report = write_cells(
+  Path("source.xlsx"),
+  Path("output.xlsx"),
+  sheet_name="Template",
+  cell_values={
+    "B10": "BK4S1-0008738",
+    "B16": 310,
+    "B17": 129,
+    "B20": "ja",
+  },
+  guard_cells=["B19", "B25"],
+  validate_sheet_rules=True,
+)
+
+print(report)
+```
 
 ## Python API: direct cell writes
 

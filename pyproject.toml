@@ -1,6 +1,6 @@
 [project]
 name = "xlinject"
-version = "0.2.0a1"
+version = "0.2.0b1"
 description = "A surgical XML injector for .xlsx files. Reads and writes specific cell values directly into the archive without altering formatting, metadata, or breaking modern dynamic array formulas."
 readme = "README.md"
 requires-python = ">=3.11"

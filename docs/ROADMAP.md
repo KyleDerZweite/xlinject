@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release stage: **alpha testing/release**.
+Current release stage: **beta release candidate**.
 The project is usable and published-flow ready, but additional hardening is planned.
 
 ## Phase 1 - MVP (Proof of Concept)
@@ -14,7 +14,7 @@ The project is usable and published-flow ready, but additional hardening is plan
 - [x] Preserve `mc:Ignorable` namespace declarations required by modern Excel files
 - [x] Apply workbook recalculation policy (`calcPr` flags + optional cache clearing)
 - [ ] Extend read path for shared strings and additional cell types
-- [ ] Extend write path to broader value types where needed
+- [x] Extend write path to broader value types where needed
 
 ## Phase 2 - Ranges and Sparse Matrices
 

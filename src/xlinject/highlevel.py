@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from math import isnan
 from pathlib import Path
-from typing import Callable, Iterable, Mapping, cast
+from typing import Any, Callable, Iterable, Mapping, TypeAlias
 import io
 import zipfile
-import xml.etree.ElementTree as ET
+
+from lxml import etree as ET
 
 from xlinject.cellrefs import build_cell_reference
 from xlinject.injector import WriteReport, write_cells, write_numeric_cells
@@ -21,6 +22,13 @@ IGNORABLE_NAMESPACE_FALLBACKS: dict[str, str] = {
     "xr2": "http://schemas.microsoft.com/office/spreadsheetml/2015/revision2",
     "xr3": "http://schemas.microsoft.com/office/spreadsheetml/2016/revision3",
 }
+
+XmlElement: TypeAlias = Any
+
+
+def _parse_xml(xml_bytes: bytes) -> ET._Element:
+    parser = ET.XMLParser(remove_blank_text=False, recover=False)
+    return ET.fromstring(xml_bytes, parser=parser)
 
 
 def to_excel_serial(value: object) -> float | None:
@@ -165,8 +173,13 @@ def _collect_namespace_prefixes(xml_bytes: bytes) -> dict[str, str]:
     return prefix_map
 
 
-def _serialize_with_ignorable_namespace_preservation(root: ET.Element, original_xml: bytes) -> bytes:
-    serialized = cast(bytes, ET.tostring(root, encoding="utf-8", xml_declaration=True))
+def _serialize_with_ignorable_namespace_preservation(root: XmlElement, original_xml: bytes) -> bytes:
+    serialized = ET.tostring(
+        root,
+        encoding="UTF-8",
+        xml_declaration=True,
+        standalone=True,
+    )
 
     ignorable_text = root.attrib.get(f"{{{NS_MC}}}Ignorable")
     if not ignorable_text:
@@ -201,7 +214,7 @@ def _serialize_with_ignorable_namespace_preservation(root: ET.Element, original_
 
 
 def _remove_formula_cached_values(sheet_xml_bytes: bytes) -> bytes:
-    root = ET.fromstring(sheet_xml_bytes)
+    root = _parse_xml(sheet_xml_bytes)
     formula_cells = root.findall(".//x:c[x:f]", NS)
     for cell in formula_cells:
         value_node = cell.find("x:v", NS)
@@ -229,7 +242,7 @@ def apply_recalc_policy(
 
     with zipfile.ZipFile(path, "r") as zip_in:
         workbook_xml = zip_in.read("xl/workbook.xml")
-        workbook_root = ET.fromstring(workbook_xml)
+        workbook_root = _parse_xml(workbook_xml)
 
         if set_full_calc_on_load:
             calc_pr = workbook_root.find("x:calcPr", NS)

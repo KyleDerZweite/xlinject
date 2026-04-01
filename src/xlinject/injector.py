@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import io
 from pathlib import Path
-from typing import Iterable, Mapping, cast
+from typing import Any, Iterable, Mapping, TypeAlias
 import zipfile
-import xml.etree.ElementTree as ET
+
+from lxml import etree as ET
 
 from xlinject.cellrefs import (
     build_cell_reference,
@@ -51,12 +52,19 @@ IGNORABLE_NAMESPACE_FALLBACKS: dict[str, str] = {
     "xr3": "http://schemas.microsoft.com/office/spreadsheetml/2016/revision3",
 }
 
+XmlElement: TypeAlias = Any
 
-def _find_cell(root: ET.Element, cell_ref: str) -> ET.Element | None:
+
+def _parse_xml(xml_bytes: bytes) -> ET._Element:
+    parser = ET.XMLParser(remove_blank_text=False, recover=False)
+    return ET.fromstring(xml_bytes, parser=parser)
+
+
+def _find_cell(root: XmlElement, cell_ref: str) -> XmlElement | None:
     return root.find(f".//x:c[@r='{cell_ref}']", X_MAIN)
 
 
-def _extract_guard_signature(root: ET.Element, cell_ref: str) -> tuple[dict[str, str], dict[str, str] | None, str | None, str | None] | None:
+def _extract_guard_signature(root: XmlElement, cell_ref: str) -> tuple[dict[str, str], dict[str, str] | None, str | None, str | None] | None:
     cell = _find_cell(root, cell_ref)
     if cell is None:
         return None
@@ -71,12 +79,12 @@ def _extract_guard_signature(root: ET.Element, cell_ref: str) -> tuple[dict[str,
     )
 
 
-def _iter_row_cells(sheet_data: ET.Element, row_number: int) -> tuple[ET.Element | None, list[ET.Element]]:
+def _iter_row_cells(sheet_data: XmlElement, row_number: int) -> tuple[XmlElement | None, list[XmlElement]]:
     row_tag = f"{{{NS_MAIN}}}row"
     cell_tag = f"{{{NS_MAIN}}}c"
 
-    row_element: ET.Element | None = None
-    cell_elements: list[ET.Element] = []
+    row_element: XmlElement | None = None
+    cell_elements: list[XmlElement] = []
 
     for row in sheet_data.findall(row_tag):
         row_r = row.attrib.get("r")
@@ -94,7 +102,7 @@ def _iter_row_cells(sheet_data: ET.Element, row_number: int) -> tuple[ET.Element
     return row_element, cell_elements
 
 
-def _insert_row_sorted(sheet_data: ET.Element, row_number: int) -> ET.Element:
+def _insert_row_sorted(sheet_data: XmlElement, row_number: int) -> XmlElement:
     row_tag = f"{{{NS_MAIN}}}row"
     new_row = ET.Element(row_tag, {"r": str(row_number)})
 
@@ -119,7 +127,7 @@ def _insert_row_sorted(sheet_data: ET.Element, row_number: int) -> ET.Element:
     return new_row
 
 
-def _insert_cell_sorted(row: ET.Element, target_ref: str) -> ET.Element:
+def _insert_cell_sorted(row: XmlElement, target_ref: str) -> XmlElement:
     cell_tag = f"{{{NS_MAIN}}}c"
     target_column, _ = split_cell_reference(target_ref)
     target_index = column_name_to_index(target_column)
@@ -145,7 +153,7 @@ def _insert_cell_sorted(row: ET.Element, target_ref: str) -> ET.Element:
     return new_cell
 
 
-def _get_or_create_cell(root: ET.Element, column_name: str, row_number: int) -> ET.Element:
+def _get_or_create_cell(root: XmlElement, column_name: str, row_number: int) -> XmlElement:
     sheet_data = root.find("x:sheetData", X_MAIN)
     if sheet_data is None:
         raise RuntimeError("Worksheet XML is missing <sheetData>")
@@ -168,7 +176,7 @@ def _get_or_create_cell(root: ET.Element, column_name: str, row_number: int) -> 
     return _insert_cell_sorted(row_element, cell_ref)
 
 
-def _is_numeric_sentinel(cell: ET.Element, sentinel: float) -> bool:
+def _is_numeric_sentinel(cell: XmlElement, sentinel: float) -> bool:
     if cell.find("x:f", X_MAIN) is not None:
         return False
 
@@ -188,7 +196,7 @@ def _is_numeric_sentinel(cell: ET.Element, sentinel: float) -> bool:
     return abs(numeric_value - sentinel) < 1e-12
 
 
-def _set_numeric_value(cell: ET.Element, value: float) -> None:
+def _set_numeric_value(cell: XmlElement, value: float) -> None:
     cell.attrib.pop("t", None)
 
     is_tag = f"{{{NS_MAIN}}}is"
@@ -203,13 +211,13 @@ def _set_numeric_value(cell: ET.Element, value: float) -> None:
     value_node.text = format(value, ".15g")
 
 
-def _remove_child_nodes(cell: ET.Element, local_name: str) -> None:
+def _remove_child_nodes(cell: XmlElement, local_name: str) -> None:
     tag = f"{{{NS_MAIN}}}{local_name}"
     for node in list(cell.findall(tag)):
         cell.remove(node)
 
 
-def _set_inline_string_value(cell: ET.Element, value: str) -> None:
+def _set_inline_string_value(cell: XmlElement, value: str) -> None:
     cell.attrib["t"] = "inlineStr"
     _remove_child_nodes(cell, "v")
     _remove_child_nodes(cell, "is")
@@ -229,10 +237,10 @@ def _coerce_number(value: object) -> float | None:
     return None
 
 
-def _first_formula_text(data_validation: ET.Element) -> str | None:
+def _first_formula_text(data_validation: XmlElement) -> str | None:
     for node in data_validation.iter():
         if node.tag.endswith("}formula1") and node.text is not None:
-            return node.text
+            return str(node.text)
     return None
 
 
@@ -346,7 +354,7 @@ def extract_validation_rules(
 ) -> dict[str, list[ValidationRule]]:
     with zipfile.ZipFile(input_path, "r") as in_archive:
         sheet_part = map_sheet_name_to_part(in_archive, sheet_name)
-        root = ET.fromstring(in_archive.read(sheet_part))
+        root = _parse_xml(in_archive.read(sheet_part))
 
     rules_by_cell: dict[str, list[ValidationRule]] = {}
     data_validations = root.find("x:dataValidations", X_MAIN)
@@ -384,12 +392,12 @@ def validate_cell_values(
 
 
 def _build_cell_cache(
-    sheet_data: ET.Element,
-) -> tuple[dict[int, ET.Element], dict[str, ET.Element]]:
+    sheet_data: XmlElement,
+) -> tuple[dict[int, XmlElement], dict[str, XmlElement]]:
     row_tag = f"{{{NS_MAIN}}}row"
     cell_tag = f"{{{NS_MAIN}}}c"
-    row_cache: dict[int, ET.Element] = {}
-    cell_cache: dict[str, ET.Element] = {}
+    row_cache: dict[int, XmlElement] = {}
+    cell_cache: dict[str, XmlElement] = {}
 
     for row in sheet_data.findall(row_tag):
         row_r = row.attrib.get("r")
@@ -409,11 +417,11 @@ def _build_cell_cache(
 
 
 def _get_or_create_cell_fast(
-    sheet_data: ET.Element,
-    row_cache: dict[int, ET.Element],
-    cell_cache: dict[str, ET.Element],
+    sheet_data: XmlElement,
+    row_cache: dict[int, XmlElement],
+    cell_cache: dict[str, XmlElement],
     cell_ref: str,
-) -> ET.Element:
+) -> XmlElement:
     existing = cell_cache.get(cell_ref)
     if existing is not None:
         return existing
@@ -470,10 +478,15 @@ def _collect_namespace_prefixes(xml_bytes: bytes) -> dict[str, str]:
 
 
 def _serialize_with_ignorable_namespace_preservation(
-    root: ET.Element,
+    root: XmlElement,
     original_sheet_xml: bytes,
 ) -> bytes:
-    serialized = cast(bytes, ET.tostring(root, encoding="utf-8", xml_declaration=True))
+    serialized = ET.tostring(
+        root,
+        encoding="UTF-8",
+        xml_declaration=True,
+        standalone=True,
+    )
 
     ignorable_text = None
     ignorable_key = f"{{{NS_MC}}}Ignorable"
@@ -514,7 +527,7 @@ def _serialize_with_ignorable_namespace_preservation(
     return patched_text.encode("utf-8")
 
 
-def _count_remaining_sentinel(root: ET.Element, column_name: str, start_row: int, end_row: int, sentinel: float) -> int:
+def _count_remaining_sentinel(root: XmlElement, column_name: str, start_row: int, end_row: int, sentinel: float) -> int:
     remaining = 0
     for row in range(start_row, end_row + 1):
         ref = build_cell_reference(column_name, row)
@@ -546,7 +559,7 @@ def replace_sentinel_in_column_range(
         sheet_part = map_sheet_name_to_part(in_archive, sheet_name)
         original_sheet_xml = in_archive.read(sheet_part)
 
-        root = ET.fromstring(original_sheet_xml)
+        root = _parse_xml(original_sheet_xml)
 
         guard_refs = [ref.strip().upper() for ref in guard_cells if ref.strip()]
         guard_before = {
@@ -595,7 +608,7 @@ def replace_sentinel_in_column_range(
 
     remaining_sentinel = 0
     with zipfile.ZipFile(output_path, "r") as out_archive:
-        post_root = ET.fromstring(out_archive.read(map_sheet_name_to_part(out_archive, sheet_name)))
+        post_root = _parse_xml(out_archive.read(map_sheet_name_to_part(out_archive, sheet_name)))
         remaining_sentinel = _count_remaining_sentinel(
             post_root,
             column_name,
@@ -634,7 +647,7 @@ def write_numeric_cells(
     with zipfile.ZipFile(input_path, "r") as in_archive:
         sheet_part = map_sheet_name_to_part(in_archive, sheet_name)
         original_sheet_xml = in_archive.read(sheet_part)
-        root = ET.fromstring(original_sheet_xml)
+        root = _parse_xml(original_sheet_xml)
         sheet_data = root.find("x:sheetData", X_MAIN)
         if sheet_data is None:
             raise RuntimeError("Worksheet XML is missing <sheetData>")
@@ -642,8 +655,8 @@ def write_numeric_cells(
         row_tag = f"{{{NS_MAIN}}}row"
         cell_tag = f"{{{NS_MAIN}}}c"
 
-        row_cache: dict[int, ET.Element] = {}
-        cell_cache: dict[str, ET.Element] = {}
+        row_cache: dict[int, XmlElement] = {}
+        cell_cache: dict[str, XmlElement] = {}
 
         for row in sheet_data.findall(row_tag):
             row_r = row.attrib.get("r")
@@ -660,7 +673,7 @@ def write_numeric_cells(
                 if ref:
                     cell_cache[ref.strip().upper()] = cell
 
-        def _get_or_create_cell_fast(cell_ref: str) -> ET.Element:
+        def _get_or_create_cell_fast(cell_ref: str) -> XmlElement:
             existing = cell_cache.get(cell_ref)
             if existing is not None:
                 return existing
@@ -769,7 +782,7 @@ def write_cells(
     with zipfile.ZipFile(input_path, "r") as in_archive:
         sheet_part = map_sheet_name_to_part(in_archive, sheet_name)
         original_sheet_xml = in_archive.read(sheet_part)
-        root = ET.fromstring(original_sheet_xml)
+        root = _parse_xml(original_sheet_xml)
         sheet_data = root.find("x:sheetData", X_MAIN)
         if sheet_data is None:
             raise RuntimeError("Worksheet XML is missing <sheetData>")

@@ -24,7 +24,7 @@ The project is usable and published-flow ready, but additional hardening is plan
 
 ## Phase 3 - Performance and Refinement
 
-- Evaluate `lxml` or lower-level parsers for large sheets
+- [x] Move worksheet XML serialization to `lxml` to avoid Excel compatibility regressions on round-trip writes
 - [x] Remove `xl/calcChain.xml` on save to trigger recalc
 - Benchmark with large and sparse workbooks
 

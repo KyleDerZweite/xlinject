@@ -1,6 +1,6 @@
 [project]
 name = "xlinject"
-version = "0.2.0b1"
+version = "0.2.0b2"
 description = "A surgical XML injector for .xlsx files. Reads and writes specific cell values directly into the archive without altering formatting, metadata, or breaking modern dynamic array formulas."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,7 +30,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: Office/Business :: Financial :: Spreadsheet"
 ]
-dependencies = []
+dependencies = [
+  "lxml>=5.2"
+]
 
 [project.urls]
 Homepage = "https://github.com/KyleDerZweite/xlinject"
@@ -44,6 +46,7 @@ xlinject-write-cells = "xlinject.cli_write_cells:main"
 [dependency-groups]
 dev = [
   "build>=1.2",
+  "lxml-stubs>=0.5",
   "pytest>=8.0",
   "ruff>=0.8",
   "mypy>=1.11",

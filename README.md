@@ -8,6 +8,13 @@ A surgical XML injector for `.xlsx` files.
 
 > Status: **Alpha testing/release - API-first**
 
+## Release note
+
+`0.2.0b2` fixes an Excel compatibility issue in the worksheet XML serializer.
+Workbooks produced by the previous `xml.etree` round-trip could still be read by ZIP tools
+and `openpyxl`, but some files were rejected by Excel itself after write operations.
+The serializer path now uses `lxml`, which preserves the required worksheet markup more safely.
+
 ## Who this is for
 
 `xlinject` is useful when you have Excel templates with modern formulas (`LET`, `FILTER`, dynamic arrays, custom metadata)

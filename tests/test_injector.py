@@ -5,12 +5,13 @@ from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 import zipfile
 
+from lxml import etree as LET
 from openpyxl import Workbook  # type: ignore[import-untyped]
 from openpyxl.worksheet.datavalidation import DataValidation  # type: ignore[import-untyped]
 
 from xlinject.cli_write_cells import _load_cells_from_csv, _load_cells_from_json, _load_cells_from_json_text
 from xlinject.highlevel import apply_recalc_policy, build_column_cell_map, inject_cells, inject_cells_mixed, merge_cell_maps, normalize_numeric_value, to_excel_serial
-from xlinject.injector import replace_sentinel_in_column_range, validate_cell_values, write_cells, write_numeric_cells
+from xlinject.injector import _serialize_with_ignorable_namespace_preservation, replace_sentinel_in_column_range, validate_cell_values, write_cells, write_numeric_cells
 from xlinject.workbook_map import map_sheet_name_to_part
 
 NS = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -236,6 +237,38 @@ def _read_cell_inline_or_value(xlsx_path: Path, sheet_name: str, cell_ref: str) 
         return inline_text.text
     value_text = cell.find("x:v", NS)
     return value_text.text if value_text is not None else None
+
+
+def test_serializer_preserves_markup_compatibility_prefixes() -> None:
+        original = b'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+ xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+ xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac"
+ xmlns:xr="http://schemas.microsoft.com/office/spreadsheetml/2014/revision"
+ mc:Ignorable="x14ac xr">
+    <sheetData />
+    <dataValidations count="1">
+        <dataValidation type="list" sqref="B9" xr:uid="{00000000-0002-0000-0000-000009000000}">
+            <mc:AlternateContent xmlns:x12ac="http://schemas.microsoft.com/office/spreadsheetml/2011/1/ac">
+                <mc:Choice Requires="x12ac">
+                    <x12ac:list>bitte ausw\xc3\xa4hlen,Test</x12ac:list>
+                </mc:Choice>
+                <mc:Fallback>
+                    <formula1>"bitte ausw\xc3\xa4hlen,Test"</formula1>
+                </mc:Fallback>
+            </mc:AlternateContent>
+        </dataValidation>
+    </dataValidations>
+</worksheet>'''
+
+        root = LET.fromstring(original)
+        serialized = _serialize_with_ignorable_namespace_preservation(root, original).decode("utf-8")
+
+        assert 'xmlns:x12ac=' in serialized
+        assert '<mc:AlternateContent' in serialized
+        assert '<x12ac:list>' in serialized
+        assert 'Requires="x12ac"' in serialized
+        assert 'ns0:' not in serialized
 
 
 def test_replace_only_sentinel_cells_and_preserve_formula(tmp_path: Path) -> None:

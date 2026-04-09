@@ -81,6 +81,20 @@ but can also write string cells as `inlineStr` while preserving neighboring XML.
 When `validate_sheet_rules=True`, direct worksheet validations such as `list`,
 `textLength`, `whole`, and `decimal` are checked before the workbook is mutated.
 
+## Questions and support
+
+If you want to use `xlinject`, are working on a Python-based `.xlsx` workflow,
+or run into a problem, please reach out.
+
+Preferred channels:
+
+- Email: [kyle@kylehub.dev](mailto:kyle@kylehub.dev)
+- GitHub Issues: <https://github.com/KyleDerZweite/xlinject/issues>
+
+Questions are welcome, especially when the intended usage is not clear.
+The goal is to keep improving both the library and its documentation, so usage
+questions, rough edges, and real-world workflow problems are useful feedback.
+I will do my best to help.
 
 ## Development setup (uv)
 

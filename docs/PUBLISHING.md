@@ -4,7 +4,11 @@ This document describes the release flow for `xlinject`.
 
 ## One-time setup
 
-1. Create the project on PyPI (`xlinject`) if it does not exist yet.
+The project already exists on [PyPI](https://pypi.org/project/xlinject/).
+Version `0.2.0b2` was uploaded on 2026-04-01, verified on 2026-10-28.
+The steps below describe publisher configuration for maintainers.
+
+1. Confirm access to the existing PyPI project (`xlinject`).
 2. In PyPI, configure a Trusted Publisher for this GitHub repository:
    - Owner: `KyleDerZweite`
    - Repository: `xlinject`
@@ -16,29 +20,32 @@ This document describes the release flow for `xlinject`.
 ## Local preflight checks
 
 ```bash
-uv sync --dev
-uv run pre-commit run --all-files
-uv run ruff check .
-uv run mypy .
-uv run pytest -q
+uv sync --locked --dev
+uv run --locked pre-commit run --all-files
+uv run --locked ruff check .
+uv run --locked mypy .
+uv run --locked pytest -q
 uv build
-uv run twine check dist/*
+uv run --locked twine check dist/*
 ```
 
 ## Release process
 
-1. Bump `version` in `pyproject.toml`.
+1. Bump `version` in `pyproject.toml` and run `uv lock` to update package metadata.
 2. Update release notes/changelog.
 3. Commit and push to `main`.
-4. Create a GitHub Release with a matching tag (for example `v0.1.1`).
+4. Create a GitHub Release with a matching tag, such as `v0.2.0b3` for a beta. Mark beta releases as prereleases.
 5. The `publish-pypi.yml` workflow runs automatically and publishes to PyPI.
 
 ## Verify installation
 
 ```bash
-python -m pip install --upgrade xlinject
+python -m pip install --upgrade --pre xlinject
 python -c "import xlinject; print(xlinject.__version__)"
 ```
+
+The `--pre` flag is required while only prereleases are available. Consumer
+installation with pip is supported; repository development uses uv.
 
 ## TestPyPI (optional)
 

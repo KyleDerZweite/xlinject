@@ -6,7 +6,7 @@ A surgical XML injector for `.xlsx` files.
 
 `xlinject` is designed to read and write specific cell values directly inside the XLSX archive while preserving formatting, metadata, and modern Excel dynamic array semantics.
 
-> Status: **Alpha testing/release - API-first**
+> Status: **Beta prerelease - API-first**
 
 ## Release note
 
@@ -101,22 +101,27 @@ I will do my best to help.
 ### Prerequisites
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/)
+- [uv 0.11.16](https://docs.astral.sh/uv/), pinned in `pyproject.toml`
 
 ### Quick start
 
 ```bash
-uv sync --dev
-uv run pre-commit install
+uv sync --locked --dev
+uv run --locked pre-commit install
 ```
+
+The default development interpreter is Python 3.11, selected by `.python-version`.
+CI runs the tests on Python 3.11, 3.12, 3.13, and 3.14 on Linux, plus Python 3.11
+and 3.14 on Windows and Python 3.14 on macOS. Other interpreter/OS combinations
+are not covered by this matrix.
 
 ### Quality checks
 
 ```bash
-uv run pre-commit run --all-files
-uv run ruff check .
-uv run mypy .
-uv run pytest
+uv run --locked pre-commit run --all-files
+uv run --locked ruff check .
+uv run --locked mypy .
+uv run --locked pytest
 ```
 
 

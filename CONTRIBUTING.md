@@ -12,17 +12,24 @@ By submitting contributions, you agree your changes are provided under the same 
 ## Setup
 
 ```bash
-uv sync --dev
+uv sync --locked --dev
 ```
+
+Use uv 0.11.16 as pinned in `pyproject.toml`. The default Python version is 3.11.
+Run `uv lock --upgrade` for intentional dependency updates, then review and commit
+`uv.lock` with the manifest changes. Dependabot checks the native `uv` ecosystem
+and GitHub Actions weekly.
+Ruff uses an explicit rule selection matching the
+[previous defaults](https://github.com/astral-sh/ruff/blob/0.15.13/docs/configuration.md).
 
 ## Before opening a PR
 
 ```bash
-uv run ruff check .
-uv run mypy .
-uv run pytest -q
+uv run --locked ruff check .
+uv run --locked mypy .
+uv run --locked pytest -q
 uv build
-uv run twine check dist/*
+uv run --locked twine check dist/*
 ```
 
 ## Contribution rules

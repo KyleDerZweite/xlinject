@@ -2,12 +2,15 @@
 
 ## Project maturity
 
-`xlinject` is in **alpha testing/release**.
+`xlinject` is in **beta prerelease**.
 The library is usable, but security hardening and API refinements are still ongoing.
 
 ## Supported versions
 
-At this stage, only the latest `main` branch state is considered supported for security fixes.
+At this stage, only the latest `main` branch state is supported for security fixes.
+The latest published package is `0.2.0b2`, a beta prerelease. Security fixes on
+`main` are not available to package consumers until a new release is published.
+There are no maintained backport branches.
 
 ## Reporting a vulnerability
 

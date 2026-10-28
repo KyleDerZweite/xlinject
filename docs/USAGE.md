@@ -6,7 +6,7 @@ For architecture and design constraints, refer to `ARCHITECTURE.md`.
 ## Install / prepare
 
 ```bash
-uv sync --dev
+uv sync --locked --dev
 ```
 
 ## Python API
@@ -202,7 +202,7 @@ This keeps application code short and moves conversion details into `xlinject`.
 ## CLI: direct cell writes from JSON or CSV
 
 ```bash
-uv run xlinject-write-cells \
+uv run --locked xlinject-write-cells \
   --input /path/to/source.xlsx \
   --output /path/to/output.xlsx \
   --sheet Eingabemaske \
@@ -239,7 +239,7 @@ D45,11.90
 Inline JSON mode (no file needed):
 
 ```bash
-uv run xlinject-write-cells \
+uv run --locked xlinject-write-cells \
   --input /path/to/source.xlsx \
   --output /path/to/output.xlsx \
   --sheet Eingabemaske \

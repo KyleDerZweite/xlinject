@@ -1,7 +1,9 @@
 # Roadmap
 
-Current release stage: **beta release candidate**.
-The project is usable and published-flow ready, but additional hardening is planned.
+Current release stage: **beta prerelease**.
+The project is published on PyPI, but additional hardening is planned.
+As verified on 2026-10-28, the latest published version is `0.2.0b2`.
+See the [PyPI release history](https://pypi.org/project/xlinject/#history).
 
 ## Phase 1 - MVP (Proof of Concept)
 
@@ -33,4 +35,4 @@ The project is usable and published-flow ready, but additional hardening is plan
 - Finalize package structure and public API
 - [x] Add CI workflow for lint/type/test
 - [x] Add release workflow for tagged builds/publish
-- [ ] Publish first public PyPI release (production index)
+- [x] Publish first public PyPI prerelease (production index)
